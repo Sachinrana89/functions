@@ -1,0 +1,61 @@
+from typing import TypedDict
+from langgraph.graph import StateGraph, END
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+
+class AgentState(TypedDict):
+    task: str
+    result: str
+
+def email_agent(state):
+    prompt = f"Handle email task: {state['task']}"
+    response = llm.invoke(prompt)
+    return {"result": response.content}
+
+def calendar_agent(state):
+    prompt = f"Handle calendar task: {state['task']}"
+    response = llm.invoke(prompt)
+    return {"result": response.content}
+
+def task_agent(state):
+    prompt = f"Handle task management: {state['task']}"
+    response = llm.invoke(prompt)
+    return {"result": response.content}
+
+def router(state):
+    task = state["task"].lower()
+
+    if "email" in task:
+        return "email"
+    elif "calendar" in task:
+        return "calendar"
+    else:
+        return "task"
+
+workflow = StateGraph(AgentState)
+
+workflow.add_node("email", email_agent)
+workflow.add_node("calendar", calendar_agent)
+workflow.add_node("task", task_agent)
+
+workflow.set_conditional_entry_point(
+    router,
+    {
+        "email": "email",
+        "calendar": "calendar",
+        "task": "task"
+    }
+)
+
+workflow.add_edge("email", END)
+workflow.add_edge("calendar", END)
+workflow.add_edge("task", END)
+
+app = workflow.compile()
+
+result = app.invoke({
+    "task": "send an email to manager"
+})
+
+print(result)
